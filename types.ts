@@ -40,6 +40,14 @@ export interface User {
   role: 'ADMIN' | 'DRIVER';
 }
 
+export interface AdminProfile {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  password?: string;
+}
+
 export interface SMSSettings {
   twilioAccountSid: string;
   twilioAuthToken: string;
