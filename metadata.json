@@ -1,0 +1,7 @@
+{
+  "name": "DJ Auto Rental & Rent-to-Own",
+  "description": "A comprehensive car rental and rent-to-own platform for San Antonio, featuring a multi-step application process and a powerful admin management panel.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
