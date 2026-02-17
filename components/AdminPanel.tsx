@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Car, MessageSquare, Mail, Menu, Search, Plus, 
   Edit, Trash2, Check, X, Star, Save, Phone, AtSign, MapPin, 
@@ -45,10 +45,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   
+  // Form States
   const [editFormData, setEditFormData] = useState<Partial<Application>>({});
   const [editVehicleData, setEditVehicleData] = useState<Partial<Vehicle>>({});
+  const [localSmsSettings, setLocalSmsSettings] = useState<SMSSettings>(smsSettings);
+  const [localEmailSettings, setLocalEmailSettings] = useState<EmailSettings>(emailSettings);
   const [profileForm, setProfileForm] = useState<AdminProfile>(adminProfile);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalSmsSettings(smsSettings);
+  }, [smsSettings]);
+
+  useEffect(() => {
+    setLocalEmailSettings(emailSettings);
+  }, [emailSettings]);
 
   const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, 'id'>>({
     year: 2024,
@@ -74,6 +85,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     onAddVehicle({ ...newVehicle, id: `VEH-${Date.now()}` });
     setIsAddingVehicle(false);
+    setSaveSuccess('Vehicle registered successfully!');
+    setTimeout(() => setSaveSuccess(null), 3000);
   };
 
   const startEditVehicle = (v: Vehicle) => {
@@ -85,6 +98,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (editingVehicleId) {
       onEditVehicle(editingVehicleId, editVehicleData);
       setEditingVehicleId(null);
+      setSaveSuccess('Vehicle asset updated.');
+      setTimeout(() => setSaveSuccess(null), 3000);
     }
   };
 
@@ -97,14 +112,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (editingAppId) {
       onEditApp(editingAppId, editFormData);
       setEditingAppId(null);
+      setSaveSuccess('Application modified.');
+      setTimeout(() => setSaveSuccess(null), 3000);
     }
+  };
+
+  const handleSmsSave = () => {
+    onUpdateSms(localSmsSettings);
+    setSaveSuccess('SMS protocols saved.');
+    setTimeout(() => setSaveSuccess(null), 3000);
+  };
+
+  const handleEmailSave = () => {
+    onUpdateEmail(localEmailSettings);
+    setSaveSuccess('Email alerts updated.');
+    setTimeout(() => setSaveSuccess(null), 3000);
   };
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateProfile(profileForm);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    setSaveSuccess('Profile synchronized.');
+    setTimeout(() => setSaveSuccess(null), 3000);
   };
 
   return (
@@ -137,7 +166,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
              <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase mb-2">
                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace(/([A-Z])/g, ' $1')} Hub
              </h1>
-             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">Live Database Connection: Supabase</p>
+             <div className="flex items-center gap-2">
+               <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">Live Database Connection: Supabase</p>
+               {saveSuccess && <span className="text-emerald-500 text-[10px] font-black uppercase animate-fadeIn">• {saveSuccess}</span>}
+             </div>
           </div>
         </div>
 
@@ -154,11 +186,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input type="text" placeholder="Full Name" value={editFormData.fullName} onChange={e => setEditFormData({...editFormData, fullName: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" />
                   <input type="text" placeholder="Phone" value={editFormData.phone} onChange={e => setEditFormData({...editFormData, phone: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" />
                   <input type="text" placeholder="Email" value={editFormData.email} onChange={e => setEditFormData({...editFormData, email: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" />
-                  <input type="text" placeholder="Address" value={editFormData.address} onChange={e => setEditFormData({...editFormData, address: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" />
-                  <select value={editFormData.program} onChange={e => setEditFormData({...editFormData, program: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
-                    <option>Standard Rental</option>
-                    <option>Rent-To-Own</option>
-                  </select>
                 </div>
                 <div className="flex justify-end gap-4 mt-8">
                   <button onClick={handleSaveEditApp} className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg">
@@ -311,34 +338,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mt-1">Automatic SMS on User Submission</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" checked={smsSettings.enabled} onChange={e => onUpdateSms({...smsSettings, enabled: e.target.checked})} className="sr-only peer" />
+                  <input 
+                    type="checkbox" 
+                    checked={localSmsSettings.enabled} 
+                    onChange={e => setLocalSmsSettings({...localSmsSettings, enabled: e.target.checked})} 
+                    className="sr-only peer" 
+                  />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
                 </label>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Account SID" value={smsSettings.twilioAccountSid} onChange={e => onUpdateSms({...smsSettings, twilioAccountSid: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
-                <input type="text" placeholder="From Phone" value={smsSettings.twilioFromNumber} onChange={e => onUpdateSms({...smsSettings, twilioFromNumber: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
+                <input type="text" placeholder="Account SID" value={localSmsSettings.twilioAccountSid} onChange={e => setLocalSmsSettings({...localSmsSettings, twilioAccountSid: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
+                <input type="text" placeholder="From Phone" value={localSmsSettings.twilioFromNumber} onChange={e => setLocalSmsSettings({...localSmsSettings, twilioFromNumber: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
               </div>
-              <input type="password" placeholder="Auth Token" value={smsSettings.twilioAuthToken} onChange={e => onUpdateSms({...smsSettings, twilioAuthToken: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
+              <input type="password" placeholder="Auth Token" value={localSmsSettings.twilioAuthToken} onChange={e => setLocalSmsSettings({...localSmsSettings, twilioAuthToken: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
               
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Confirmation Template</label>
                 <textarea 
                   rows={4}
-                  value={smsSettings.confirmationTemplate}
-                  onChange={e => onUpdateSms({...smsSettings, confirmationTemplate: e.target.value})}
+                  value={localSmsSettings.confirmationTemplate}
+                  onChange={e => setLocalSmsSettings({...localSmsSettings, confirmationTemplate: e.target.value})}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-medium text-sm"
                   placeholder="Variables: {name}, {program}"
                 />
                 <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
                   <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Preview Logic:</p>
-                  <p className="text-xs text-slate-600 italic">"Hi John, your application for the Rent-to-Own program has been received!"</p>
+                  <p className="text-xs text-slate-600 italic">"Hi {adminProfile.name || 'John'}, your application for the {vehicles[0]?.type || 'Rent-to-Own'} program has been received!"</p>
                 </div>
               </div>
 
               <button 
-                onClick={() => onUpdateSms(smsSettings)}
-                className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/10"
+                onClick={handleSmsSave}
+                className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black transition-all"
               >
                 Save Protocol Config
               </button>
@@ -357,16 +389,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mt-1">Notify Admin on Approval/Rejection</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" checked={emailSettings.enabled} onChange={e => onUpdateEmail({...emailSettings, enabled: e.target.checked})} className="sr-only peer" />
+                  <input type="checkbox" checked={localEmailSettings.enabled} onChange={e => setLocalEmailSettings({...localEmailSettings, enabled: e.target.checked})} className="sr-only peer" />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="SMTP Host" value={emailSettings.smtpHost} onChange={e => onUpdateEmail({...emailSettings, smtpHost: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
-                <input type="text" placeholder="Port" value={emailSettings.smtpPort} onChange={e => onUpdateEmail({...emailSettings, smtpPort: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
+                <input type="text" placeholder="SMTP Host" value={localEmailSettings.smtpHost} onChange={e => setLocalEmailSettings({...localEmailSettings, smtpHost: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
+                <input type="text" placeholder="Port" value={localEmailSettings.smtpPort} onChange={e => setLocalEmailSettings({...localEmailSettings, smtpPort: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs" />
               </div>
               <input type="text" placeholder="Recipient Admin Email" value={adminProfile.email} disabled className="w-full px-4 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-xs uppercase" />
-              <button className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/10">Lock SMTP Details</button>
+              <button onClick={handleEmailSave} className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black transition-all">Lock SMTP Details</button>
             </div>
           </div>
         )}
@@ -404,8 +436,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <input type="text" value={profileForm.address} onChange={e => setProfileForm({...profileForm, address: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-bold" />
               </div>
               <div className="pt-4 flex items-center gap-6">
-                <button type="submit" className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black">Save Profile Changes</button>
-                {saveSuccess && <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs uppercase tracking-widest animate-fadeIn"><CheckCircle2 size={16} /> Profile Synchronized</div>}
+                <button type="submit" className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/10 hover:bg-black transition-all">Save Profile Changes</button>
               </div>
             </form>
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Vehicle, Application, SMSSettings, EmailSettings, AdminProfile } from './types';
 import { FEATURED_VEHICLES } from './constants';
@@ -33,38 +32,40 @@ const App: React.FC = () => {
 
   const [emailSettings, setEmailSettings] = useState<EmailSettings>({
     smtpHost: '', smtpPort: '587', smtpUser: '', smtpPass: '', fromEmail: '',
-    enabled: false, confirmationTemplate: 'Dear {name}, thank you for applying to DJ Auto Fleet.'
+    enabled: false, confirmationTemplate: 'Dear {name}, thank you for applying to DJ Auto Fleet. Your application status has been updated to {status}.'
   });
 
-  // Helper: Format Phone for Twilio
+  // Helper: Format Phone for Twilio to ensure +1 for US numbers
   const formatTwilioNumber = (phone: string) => {
     const cleaned = phone.replace(/\D/g, '');
-    return cleaned.startsWith('1') ? `+${cleaned}` : `+1${cleaned}`;
+    if (cleaned.length === 10) return `+1${cleaned}`;
+    if (cleaned.length === 11 && cleaned.startsWith('1')) return `+${cleaned}`;
+    return `+${cleaned}`; // Fallback for other lengths
   };
 
-  // Trigger: SMS via Twilio
+  // Trigger: SMS via Twilio Simulation
   const triggerUserSMS = async (app: Application) => {
-    if (!smsSettings.enabled) return;
+    if (!smsSettings.enabled || !smsSettings.twilioAccountSid) return;
     const formattedPhone = formatTwilioNumber(app.phone);
     const message = smsSettings.confirmationTemplate
       .replace('{name}', app.fullName)
       .replace('{program}', app.program);
 
-    console.log(`[Twilio SMS Trigger] Sending to ${formattedPhone}: "${message}"`);
-    // Mocking real Twilio API call
-    /* 
-    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${smsSettings.twilioAccountSid}/Messages.json`, {
-      method: 'POST',
-      body: new URLSearchParams({ From: smsSettings.twilioFromNumber, To: formattedPhone, Body: message })
-    });
-    */
+    console.log(`[TWILIO SMS] To: ${formattedPhone} | Msg: "${message}"`);
+    // Note: Direct Twilio calls from frontend are usually blocked by CORS/Security.
+    // In a production app, this would be a call to a serverless function.
   };
 
-  // Trigger: Admin Email Alert
-  const triggerAdminEmail = async (app: Application, status: string) => {
+  // Trigger: Admin Email Alert on Status Change
+  const triggerAdminNotification = async (app: Application, newStatus: string) => {
     if (!emailSettings.enabled) return;
-    console.log(`[SMTP Alert] Notifying ${adminProfile.email}: Application ${app.id} (${app.fullName}) changed to ${status}`);
-    // Simulated SMTP Logic
+    const adminEmail = adminProfile.email;
+    const subject = `Application Status Update: ${app.fullName}`;
+    const body = emailSettings.confirmationTemplate
+      .replace('{name}', app.fullName)
+      .replace('{status}', newStatus);
+
+    console.log(`[EMAIL ALERT] To Admin: ${adminEmail} | Subject: ${subject} | Body: ${body}`);
   };
 
   // Fetch initial data from Supabase
@@ -103,10 +104,17 @@ const App: React.FC = () => {
 
   const handleNavigate = (view: View) => {
     if (view === View.LOGIN) {
-      const newAdminState = !isAdmin;
-      setIsAdmin(newAdminState);
-      localStorage.setItem('dj_admin_session', newAdminState.toString());
-      setCurrentView(View.HOME);
+      if (isAdmin) {
+        setIsAdmin(false);
+        localStorage.setItem('dj_admin_session', 'false');
+        setCurrentView(View.HOME);
+      } else {
+        // Simple bypass for demo - in real app would show login form
+        const newAdminState = true;
+        setIsAdmin(newAdminState);
+        localStorage.setItem('dj_admin_session', 'true');
+        setCurrentView(View.ADMIN);
+      }
     } else {
       setCurrentView(view);
     }
@@ -127,7 +135,6 @@ const App: React.FC = () => {
         date: new Date().toLocaleDateString()
       };
       setApplications(prev => [newApp, ...prev]);
-      // Auto-trigger Twilio Confirmation
       triggerUserSMS(newApp);
     }
   };
@@ -137,7 +144,9 @@ const App: React.FC = () => {
     if (!error) {
       const updatedApp = applications.find(a => a.id === id);
       setApplications(prev => prev.map(app => app.id === id ? { ...app, status } : app));
-      if (updatedApp) triggerAdminEmail(updatedApp, status);
+      if (updatedApp) {
+        triggerAdminNotification(updatedApp, status);
+      }
     }
   };
 
@@ -164,7 +173,7 @@ const App: React.FC = () => {
     if (updatedData.year) dbUpdate.year = updatedData.year;
     if (updatedData.make) dbUpdate.make = updatedData.make;
     if (updatedData.model) dbUpdate.model = updatedData.model;
-    if (updatedData.pricePerWeek) dbUpdate.price_per_week = updatedData.pricePerWeek;
+    if (updatedData.pricePerWeek !== undefined) dbUpdate.price_per_week = updatedData.pricePerWeek;
     if (updatedData.image) dbUpdate.image = updatedData.image;
     if (updatedData.type) dbUpdate.type = updatedData.type;
 
@@ -182,7 +191,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50">
       <Navbar currentView={currentView} onNavigate={handleNavigate} isAdmin={isAdmin} />
       {loading ? (
         <div className="h-[60vh] flex items-center justify-center">
