@@ -11,6 +11,7 @@ import ApplicationForm from './components/ApplicationForm';
 import AdminPanel from './components/AdminPanel';
 import DriverDashboard from './components/DriverDashboard';
 import Contact from './components/Contact';
+import AboutUs from './components/AboutUs';
 import LoginForm from './components/LoginForm';
 import UserLoginForm from './components/UserLoginForm';
 import Footer from './components/Footer';
@@ -216,6 +217,8 @@ const App: React.FC = () => {
               onNavigateToLogin={() => setCurrentView(View.USER_LOGIN)}
             />
           )}
+
+          {currentView === View.ABOUT && <AboutUs />}
 
           {currentView === View.CONTACT && <Contact />}
 

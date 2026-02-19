@@ -335,6 +335,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </form>
             )}
 
+            {editingVehicleId && (
+              <div className="bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200 animate-fadeIn mb-12 shadow-xl">
+                 <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900">Modify Vehicle Specs</h3>
+                    <button onClick={() => setEditingVehicleId(null)} className="p-2 hover:bg-white rounded-xl transition-all"><X /></button>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <input type="number" placeholder="Year" value={editVehicleData.year} onChange={e => setEditVehicleData({...editVehicleData, year: parseInt(e.target.value)})} className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold" />
+                    <input type="text" placeholder="Make" value={editVehicleData.make} onChange={e => setEditVehicleData({...editVehicleData, make: e.target.value})} className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold" />
+                    <input type="text" placeholder="Model" value={editVehicleData.model} onChange={e => setEditVehicleData({...editVehicleData, model: e.target.value})} className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold" />
+                    <input type="number" placeholder="Weekly Rate" value={editVehicleData.pricePerWeek} onChange={e => setEditVehicleData({...editVehicleData, pricePerWeek: parseInt(e.target.value)})} className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold" />
+                    <input type="text" placeholder="Image URL" value={editVehicleData.image} onChange={e => setEditVehicleData({...editVehicleData, image: e.target.value})} className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold" />
+                    <select value={editVehicleData.type} onChange={e => setEditVehicleData({...editVehicleData, type: e.target.value as any})} className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-black text-xs uppercase">
+                      <option value="RIDESHARE">Rental Only</option>
+                      <option value="RENT_TO_OWN">Rent to Own</option>
+                      <option value="BOTH">Both</option>
+                    </select>
+                 </div>
+                 <div className="mt-6">
+                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Vehicle Features (Comma separated)</label>
+                    <textarea 
+                      placeholder="Bluetooth, Backup Camera..." 
+                      value={newFeaturesStr}
+                      onChange={(e) => setNewFeaturesStr(e.target.value)}
+                      className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold"
+                      rows={3}
+                    />
+                 </div>
+                 <div className="mt-8 flex gap-4">
+                    <button onClick={handleSaveEditVehicle} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10">Synchronize Registry</button>
+                    <button onClick={() => setEditingVehicleId(null)} className="px-10 py-4 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-white">Discard</button>
+                 </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {vehicles.map(v => (
                 <div key={v.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl flex flex-col group">
@@ -344,7 +379,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="flex-1">
                     <h4 className="text-xl font-black uppercase text-slate-900">{v.year} {v.make} {v.model}</h4>
                     <div className="flex flex-wrap gap-2 mt-4">
-                       {v.features.slice(0, 3).map((f, i) => (
+                       {v.features.map((f, i) => (
                          <span key={i} className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest">{f}</span>
                        ))}
                     </div>

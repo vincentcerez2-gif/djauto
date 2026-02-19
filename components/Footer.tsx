@@ -43,7 +43,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
            <h4 className="text-slate-500 text-[10px] font-black tracking-[0.4em] uppercase mb-10">Company</h4>
            <ul className="space-y-6">
              <li><button onClick={() => onNavigate(View.APPLY)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Start Application</button></li>
-             <li><button onClick={() => onNavigate(View.HOME)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Our Inventory</button></li>
+             <li><button onClick={() => onNavigate(View.ABOUT)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">About Us</button></li>
              <li><button onClick={() => onNavigate(View.CONTACT)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Contact Support</button></li>
            </ul>
         </div>

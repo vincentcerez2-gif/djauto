@@ -30,6 +30,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, isAdmin, hasAp
         <div className="hidden lg:flex items-center gap-8">
           <button onClick={() => onNavigate(View.HOME)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.HOME ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Home</button>
           <button onClick={() => onNavigate(View.APPLY)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.APPLY ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Apply Now</button>
+          <button onClick={() => onNavigate(View.ABOUT)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.ABOUT ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>About</button>
           <button onClick={() => onNavigate(View.CONTACT)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.CONTACT ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Contact</button>
         </div>
 

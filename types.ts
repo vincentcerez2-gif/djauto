@@ -2,6 +2,7 @@
 export enum View {
   HOME = 'HOME',
   APPLY = 'APPLY',
+  ABOUT = 'ABOUT',
   ADMIN = 'ADMIN',
   LOGIN = 'LOGIN', // Admin Login
   USER_LOGIN = 'USER_LOGIN', // Driver Login

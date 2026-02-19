@@ -65,7 +65,7 @@ const Contact: React.FC = () => {
           {/* Map Card */}
           <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white h-[600px]">
             <iframe 
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3473.1092635060522!2d-98.63275982391691!3d29.484010044905332!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x865c5d1323afe20d%3A0x5caf865c681018d3!2s5072%20Timberhill%20Dr%2C%20San%20Antonio%2C%20TX%2078238%2C%20USA!5e0!3m2!1sen!2sph!4v1771482518165!5m2!1sen!2sph" 
+              src="https://www.google.com/maps/d/u/0/embed?mid=1CLi8ClZgXbJWDG6sKYBxih8EULpKCJU&ehbc=2E312F&noprof=1" 
               width="100%" 
               height="100%" 
               style={{ border: 0 }} 
