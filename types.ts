@@ -3,7 +3,17 @@ export enum View {
   HOME = 'HOME',
   APPLY = 'APPLY',
   ADMIN = 'ADMIN',
-  LOGIN = 'LOGIN'
+  LOGIN = 'LOGIN', // Admin Login
+  USER_LOGIN = 'USER_LOGIN', // Driver Login
+  CONTACT = 'CONTACT',
+  DRIVER_DASHBOARD = 'DRIVER_DASHBOARD'
+}
+
+export type AIProvider = 'OPENAI' | 'GEMINI' | 'CLAUDE';
+
+export interface AISettings {
+  provider: AIProvider;
+  apiKey: string;
 }
 
 export interface Vehicle {
@@ -15,7 +25,7 @@ export interface Vehicle {
   pricePerWeek: number;
   image: string;
   features: string[];
-  type: 'RIDESHARE' | 'RENT_TO_OWN';
+  type: 'RIDESHARE' | 'RENT_TO_OWN' | 'BOTH';
   isFeatured: boolean;
 }
 
@@ -31,13 +41,11 @@ export interface Application {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   date: string;
   program: string;
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'ADMIN' | 'DRIVER';
+  documentsComplete?: boolean;
+  verificationStatus?: 'PASS' | 'FAIL' | 'UNVERIFIED';
+  verificationReasoning?: string;
+  licenseFront?: string;
+  licenseBack?: string;
 }
 
 export interface AdminProfile {

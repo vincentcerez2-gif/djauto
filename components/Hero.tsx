@@ -9,14 +9,12 @@ interface HeroProps {
 const Hero: React.FC<HeroProps> = ({ onApply }) => {
   return (
     <div className="relative h-[85vh] flex items-center justify-center overflow-hidden bg-black">
-      {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center opacity-70 scale-105 transition-transform duration-[10000ms] ease-linear" 
         style={{ backgroundImage: 'url("https://i.ytimg.com/vi/lpAdxawrHqA/maxresdefault.jpg")' }}
       />
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-[#0f172a] via-black/40 to-black/60" />
 
-      {/* Content */}
       <div className="relative z-10 text-center max-w-5xl px-6">
         <div className="flex justify-center mb-8">
           <div className="inline-flex items-center gap-2 bg-red-600/90 backdrop-blur-sm px-4 py-2 rounded-full border border-red-500/50 shadow-lg shadow-red-600/20">
@@ -45,13 +43,12 @@ const Hero: React.FC<HeroProps> = ({ onApply }) => {
             Start Application
             <ArrowUpRight size={20} />
           </button>
-          <a href="tel:2103906135" className="w-full sm:w-auto bg-white hover:bg-gray-100 text-[#0f172a] px-10 py-5 rounded-2xl font-black text-sm tracking-[0.1em] uppercase transition-all transform hover:translate-y-[-2px] active:scale-95 border-b-4 border-gray-200 text-center">
+          <a href="tel:2103906135" className="w-full sm:w-auto bg-white hover:bg-gray-100 text-[#0f172a] px-10 py-5 rounded-2xl font-black text-sm tracking-[0.1em] uppercase transition-all transform hover:translate-y-[-2px] active:scale-95 border-b-4 border-gray-200 text-center flex items-center justify-center">
             Speak To Sales
           </a>
         </div>
       </div>
       
-      {/* Decorative Bottom Fade */}
       <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#0f172a] to-transparent z-10" />
     </div>
   );

@@ -3,29 +3,28 @@ import React from 'react';
 import { Car, Zap, Shield, Clock } from 'lucide-react';
 import { Vehicle } from './types';
 
-// Added required isFeatured property to the vehicle objects
 export const FEATURED_VEHICLES: Vehicle[] = [
   {
-    id: '1',
+    id: 'v-fusion-2017',
+    year: 2017,
+    make: 'Ford',
+    model: 'Fusion',
+    color: 'Black',
+    pricePerWeek: 375,
+    image: 'https://www.fusionsportforums.com/attachments/1690600211968-png.31408/',
+    features: ['Rideshare Ready', 'RPO Path', 'Backup Camera', 'Bluetooth Audio'],
+    type: 'RENT_TO_OWN',
+    isFeatured: true
+  },
+  {
+    id: 'v-optima-2015',
     year: 2015,
     make: 'Kia',
     model: 'Optima Hybrid EX',
     color: 'Bright Silver',
     pricePerWeek: 350,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/2014_Kia_Optima_Hybrid_EX_in_Bright_Silver%2C_Front_Right%2C_08-22-2023.jpg/1280px-2014_Kia_Optima_Hybrid_EX_in_Bright_Silver%2C_Front_Right%2C_08-22-2023.jpg',
-    features: ['Hybrid Fuel Economy', 'Leather Seats', 'Rideshare Ready', 'Insurance Included'],
-    type: 'RENT_TO_OWN',
-    isFeatured: true
-  },
-  {
-    id: '2',
-    year: 2015,
-    make: 'Ford',
-    model: 'Fusion',
-    color: 'Black',
-    pricePerWeek: 375,
-    image: 'https://live.staticflickr.com/65535/48334337927_351e6fc58c_c.jpg',
-    features: ['Premium Audio System', 'Backup Camera', 'Uber/Lyft Approved', 'Path to Ownership'],
+    features: ['Hybrid Efficiency', 'Premium Interior', 'Commercial Insurance', 'Uber Ready'],
     type: 'RIDESHARE',
     isFeatured: true
   }

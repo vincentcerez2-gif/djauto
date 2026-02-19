@@ -5,15 +5,16 @@ import { Vehicle } from '../types';
 
 interface FeaturedVehiclesProps {
   vehicles: Vehicle[];
+  onApply: (vehicleId: string) => void;
 }
 
-const FeaturedVehicles: React.FC<FeaturedVehiclesProps> = ({ vehicles }) => {
+const FeaturedVehicles: React.FC<FeaturedVehiclesProps> = ({ vehicles, onApply }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'RIDESHARE' | 'RENT_TO_OWN'>('ALL');
 
   const filteredVehicles = vehicles.filter(v => {
     const matchesSearch = `${v.make} ${v.model}`.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterType === 'ALL' || v.type === filterType;
+    const matchesFilter = filterType === 'ALL' || v.type === filterType || v.type === 'BOTH';
     return matchesSearch && matchesFilter;
   });
 
@@ -100,7 +101,10 @@ const FeaturedVehicles: React.FC<FeaturedVehiclesProps> = ({ vehicles }) => {
                     ))}
                   </div>
 
-                  <button className="w-full bg-[#020617] text-white py-4 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all hover:bg-black active:scale-[0.98] shadow-lg shadow-black/5">
+                  <button 
+                    onClick={() => onApply(vehicle.id)}
+                    className="w-full bg-[#020617] text-white py-4 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all hover:bg-black active:scale-[0.98] shadow-lg shadow-black/5"
+                  >
                     Reserve Now
                   </button>
                 </div>
