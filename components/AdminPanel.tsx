@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, Users, Car, MessageSquare, Mail, Menu, Search, Plus, 
+  LayoutDashboard, Users as UsersIcon, Car, MessageSquare, Mail, Menu, Search, Plus, 
   Edit, Trash2, Check, X, Star, Save, Phone, AtSign, MapPin, 
-  User as UserIcon, Lock, CheckCircle2, ChevronRight, Info, Eye, Settings, ShieldAlert, ShieldCheck
+  User as UserIcon, Lock, CheckCircle2, ChevronRight, Info, Eye, Settings, ShieldAlert, ShieldCheck, Camera
 } from 'lucide-react';
-import { Vehicle, Application, SMSSettings, EmailSettings, AdminProfile, AISettings, AIProvider } from '../types';
+import { Vehicle, Application, SMSSettings, EmailSettings, AdminProfile, AISettings, AIProvider, SystemUser, UserRole } from '../types';
 
 interface AdminPanelProps {
   vehicles: Vehicle[];
@@ -24,6 +24,9 @@ interface AdminPanelProps {
   adminProfile: AdminProfile;
   onUpdateProfile: (p: AdminProfile) => void;
   onUpdateAI: (s: AISettings) => void;
+  systemUsers: SystemUser[];
+  onAddSystemUser: (user: Omit<SystemUser, 'id' | 'createdAt'>) => void;
+  onDeleteSystemUser: (id: string) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -42,10 +45,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateEmail,
   adminProfile,
   onUpdateProfile,
-  onUpdateAI
+  onUpdateAI,
+  systemUsers,
+  onAddSystemUser,
+  onDeleteSystemUser
 }) => {
   const [activeTab, setActiveTab] = useState('applications');
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
+  const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [viewingAppId, setViewingAppId] = useState<string | null>(null);
   
@@ -56,12 +63,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [localEmailSettings, setLocalEmailSettings] = useState<EmailSettings>(emailSettings);
   const [localAiSettings, setLocalAiSettings] = useState<AISettings>(aiSettings);
   const [profileForm, setProfileForm] = useState<AdminProfile>(adminProfile);
+  const [userForm, setUserForm] = useState<Omit<SystemUser, 'id' | 'createdAt'>>({ fullName: '', email: '', role: 'EDITOR' });
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => { setLocalSmsSettings(smsSettings); }, [smsSettings]);
   useEffect(() => { setLocalEmailSettings(emailSettings); }, [emailSettings]);
   useEffect(() => { setLocalAiSettings(aiSettings); }, [aiSettings]);
+  useEffect(() => { setProfileForm(adminProfile); }, [adminProfile]);
 
   const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, 'id'>>({
     year: 2024,
@@ -80,6 +89,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const menuItems = [
     { id: 'applications', label: 'Applications', icon: <LayoutDashboard size={20} /> },
     { id: 'fleet', label: 'Fleet Management', icon: <Car size={20} /> },
+    { id: 'users', label: 'System Users', icon: <UsersIcon size={20} /> },
     { id: 'sms', label: 'SMS Alerts', icon: <MessageSquare size={20} /> },
     { id: 'email', label: 'Email Settings', icon: <Mail size={20} /> },
     { id: 'ai-settings', label: 'AI Configuration', icon: <Settings size={20} /> },
@@ -97,6 +107,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setNewVehicle({ year: 2024, make: '', model: '', color: '', pricePerWeek: 0, image: '', features: [], type: 'RIDESHARE', isFeatured: false });
     setNewFeaturesStr('');
     setSaveSuccess('Vehicle registered successfully!');
+    setTimeout(() => setSaveSuccess(null), 3000);
+  };
+
+  const handleAddUserSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onAddSystemUser(userForm);
+    setIsAddingUser(false);
+    setUserForm({ fullName: '', email: '', role: 'EDITOR' });
+    setSaveSuccess('User added successfully!');
+    setTimeout(() => setSaveSuccess(null), 3000);
+  };
+
+  const handleProfileSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateProfile(profileForm);
+    setSaveSuccess('Profile updated successfully!');
     setTimeout(() => setSaveSuccess(null), 3000);
   };
 
@@ -128,12 +154,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleAiSave = () => {
-    onUpdateAI(localAiSettings);
-    setSaveSuccess('AI configuration saved.');
-    setTimeout(() => setSaveSuccess(null), 3000);
-  };
-
   const filteredApps = applications.filter(app => 
     app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
     app.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -143,10 +163,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     <div className="flex h-[calc(100vh-80px)] overflow-hidden bg-slate-50 text-slate-900 relative">
       <aside className="w-64 bg-[#020617] text-white flex flex-col shrink-0">
         <div className="p-8 border-b border-white/5">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center overflow-hidden border-2 border-white/20">
+              {profileForm.image ? (
+                <img src={profileForm.image} alt="Admin" className="w-full h-full object-cover" />
+              ) : (
+                <UserIcon size={20} />
+              )}
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Connected</p>
+              <p className="text-xs font-bold text-white truncate max-w-[120px]">{profileForm.name}</p>
+            </div>
+          </div>
           <h2 className="font-black text-[10px] tracking-[0.3em] uppercase text-slate-500 mb-1">Administrative</h2>
           <h1 className="text-sm font-black text-white uppercase tracking-widest">Fleet Hub</h1>
         </div>
-        <nav className="flex-1 p-4 space-y-2 mt-4">
+        <nav className="flex-1 p-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -161,7 +194,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </nav>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-12">
+      <main className="flex-1 overflow-y-auto p-12 custom-scrollbar">
         <div className="flex justify-between items-start mb-12">
           <div>
              <h1 className="text-5xl font-black text-slate-900 tracking-tighter uppercase mb-2">
@@ -175,6 +208,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         </div>
 
+        {/* APPLICATIONS TAB */}
         {activeTab === 'applications' && (
           <div className="space-y-6">
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden">
@@ -242,57 +276,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* AI SETTINGS TAB */}
-        {activeTab === 'ai-settings' && (
-           <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
-             <div className="flex items-center gap-4 text-red-600">
-                <Settings size={32} />
-                <h3 className="text-2xl font-black uppercase tracking-tighter">AI Verification Logic</h3>
-             </div>
-             
-             <div className="space-y-8">
-                <div>
-                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block">Selected AI Provider</label>
-                   <div className="grid grid-cols-3 gap-4">
-                      {(['GEMINI', 'OPENAI', 'CLAUDE'] as AIProvider[]).map(p => (
-                        <button 
-                          key={p} 
-                          onClick={() => setLocalAiSettings({...localAiSettings, provider: p})}
-                          className={`p-6 rounded-2xl border-2 font-black text-xs uppercase transition-all
-                            ${localAiSettings.provider === p ? 'border-red-600 bg-red-50 text-red-600 shadow-lg' : 'border-slate-100 text-slate-400'}`}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                   </div>
-                </div>
-
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Provider API Key</label>
-                   <div className="relative">
-                      <Lock size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        type="password" 
-                        placeholder="sk-..." 
-                        value={localAiSettings.apiKey}
-                        onChange={(e) => setLocalAiSettings({...localAiSettings, apiKey: e.target.value})}
-                        className="w-full pl-14 pr-6 py-5 rounded-2xl bg-slate-50 border border-slate-100 font-mono text-sm focus:ring-4 focus:ring-red-50 outline-none" 
-                      />
-                   </div>
-                   <p className="text-[10px] font-bold text-slate-400 mt-2 leading-relaxed uppercase">Neural core keys are used for real-time forensic ID verification during driver registration.</p>
-                </div>
-
-                <button 
-                  onClick={handleAiSave}
-                  className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-black transition-all"
-                >
-                  Save Neural Configuration
-                </button>
-             </div>
-           </div>
-        )}
-
-        {/* FLEET TAB */}
+        {/* FLEET MANAGEMENT TAB */}
         {activeTab === 'fleet' && (
           <div className="space-y-12">
             <div className="flex justify-between items-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
@@ -394,6 +378,246 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
+        {/* SYSTEM USERS TAB */}
+        {activeTab === 'users' && (
+          <div className="space-y-12">
+            <div className="flex justify-between items-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
+               <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase">System Operators</h3>
+               </div>
+               <button onClick={() => setIsAddingUser(!isAddingUser)} className="flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/20">
+                {isAddingUser ? <X size={16} /> : <Plus size={16} />}
+                {isAddingUser ? 'Cancel' : 'Add Operator'}
+              </button>
+            </div>
+
+            {isAddingUser && (
+              <form onSubmit={handleAddUserSubmit} className="bg-slate-900 text-white p-12 rounded-[3rem] shadow-2xl animate-fadeIn space-y-8 max-w-2xl mx-auto">
+                <h3 className="text-2xl font-black uppercase tracking-tighter">New Operator Details</h3>
+                <div className="space-y-4">
+                  <input type="text" placeholder="Full Name" value={userForm.fullName} onChange={e => setUserForm({...userForm, fullName: e.target.value})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none" required />
+                  <input type="email" placeholder="Email Address" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none" required />
+                  <select value={userForm.role} onChange={e => setUserForm({...userForm, role: e.target.value as UserRole})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none font-black text-xs uppercase">
+                    <option value="MANAGER">Manager</option>
+                    <option value="EDITOR">Editor</option>
+                  </select>
+                </div>
+                <button type="submit" className="w-full bg-red-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all">Provision Access</button>
+              </form>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {systemUsers.map(user => (
+                <div key={user.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl flex flex-col justify-between">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black uppercase text-sm">
+                      {user.fullName.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-900 uppercase tracking-tight">{user.fullName}</h4>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{user.role}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-8">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Email: <span className="text-slate-900 font-bold">{user.email}</span></p>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Added: <span className="text-slate-900 font-bold">{user.createdAt}</span></p>
+                  </div>
+                  <button onClick={() => onDeleteSystemUser(user.id)} className="w-full py-3 rounded-2xl bg-red-50 text-red-600 font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Revoke Access</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SMS SETTINGS TAB */}
+        {activeTab === 'sms' && (
+          <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-black uppercase tracking-tighter">SMS Alert Configuration</h3>
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={localSmsSettings.enabled} onChange={() => setLocalSmsSettings({ ...localSmsSettings, enabled: !localSmsSettings.enabled })} />
+                  <div className={`block w-14 h-8 rounded-full transition-colors ${localSmsSettings.enabled ? 'bg-red-600' : 'bg-slate-200'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${localSmsSettings.enabled ? 'translate-x-6' : ''}`}></div>
+                </div>
+              </label>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Twilio Account SID</label>
+                  <input type="text" value={localSmsSettings.twilioAccountSid} onChange={e => setLocalSmsSettings({...localSmsSettings, twilioAccountSid: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-mono text-xs" placeholder="AC..." />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Twilio Auth Token</label>
+                  <input type="password" value={localSmsSettings.twilioAuthToken} onChange={e => setLocalSmsSettings({...localSmsSettings, twilioAuthToken: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-mono text-xs" placeholder="••••••••" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Twilio Phone Number</label>
+                <input type="text" value={localSmsSettings.twilioFromNumber} onChange={e => setLocalSmsSettings({...localSmsSettings, twilioFromNumber: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" placeholder="+1234567890" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Confirmation Template</label>
+                <textarea value={localSmsSettings.confirmationTemplate} onChange={e => setLocalSmsSettings({...localSmsSettings, confirmationTemplate: e.target.value})} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm" rows={4} />
+                <p className="text-[10px] text-slate-400 mt-2 font-black uppercase">Tags: {'{name}, {program}, {vehicle}'}</p>
+              </div>
+              <button onClick={() => { onUpdateSms(localSmsSettings); setSaveSuccess('SMS configurations saved.'); setTimeout(() => setSaveSuccess(null), 3000); }} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-black transition-all">Synchronize SMS Protocol</button>
+            </div>
+          </div>
+        )}
+
+        {/* EMAIL SETTINGS TAB */}
+        {activeTab === 'email' && (
+          <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-black uppercase tracking-tighter">SMTP Relay Configuration</h3>
+              <label className="flex items-center cursor-pointer">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={localEmailSettings.enabled} onChange={() => setLocalEmailSettings({ ...localEmailSettings, enabled: !localEmailSettings.enabled })} />
+                  <div className={`block w-14 h-8 rounded-full transition-colors ${localEmailSettings.enabled ? 'bg-red-600' : 'bg-slate-200'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${localEmailSettings.enabled ? 'translate-x-6' : ''}`}></div>
+                </div>
+              </label>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">SMTP Host</label>
+                  <input type="text" value={localEmailSettings.smtpHost} onChange={e => setLocalEmailSettings({...localEmailSettings, smtpHost: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" placeholder="smtp.gmail.com" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">SMTP Port</label>
+                  <input type="text" value={localEmailSettings.smtpPort} onChange={e => setLocalEmailSettings({...localEmailSettings, smtpPort: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" placeholder="587" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">SMTP Username</label>
+                  <input type="text" value={localEmailSettings.smtpUser} onChange={e => setLocalEmailSettings({...localEmailSettings, smtpUser: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">SMTP Password</label>
+                  <input type="password" value={localEmailSettings.smtpPass} onChange={e => setLocalEmailSettings({...localEmailSettings, smtpPass: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" placeholder="••••••••" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Outgoing Template</label>
+                <textarea value={localEmailSettings.confirmationTemplate} onChange={e => setLocalEmailSettings({...localEmailSettings, confirmationTemplate: e.target.value})} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm" rows={4} />
+              </div>
+              <button onClick={() => { onUpdateEmail(localEmailSettings); setSaveSuccess('Email configurations saved.'); setTimeout(() => setSaveSuccess(null), 3000); }} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-black transition-all">Synchronize SMTP Protocol</button>
+            </div>
+          </div>
+        )}
+
+        {/* AI SETTINGS TAB */}
+        {activeTab === 'ai-settings' && (
+           <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
+             <div className="flex items-center gap-4 text-red-600">
+                <Settings size={32} />
+                <h3 className="text-2xl font-black uppercase tracking-tighter">AI Verification Logic</h3>
+             </div>
+             
+             <div className="space-y-8">
+                <div>
+                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 block">Selected AI Provider</label>
+                   <div className="grid grid-cols-3 gap-4">
+                      {(['GEMINI', 'OPENAI', 'CLAUDE'] as AIProvider[]).map(p => (
+                        <button 
+                          key={p} 
+                          onClick={() => setLocalAiSettings({...localAiSettings, provider: p})}
+                          className={`p-6 rounded-2xl border-2 font-black text-xs uppercase transition-all
+                            ${localAiSettings.provider === p ? 'border-red-600 bg-red-50 text-red-600 shadow-lg' : 'border-slate-100 text-slate-400'}`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Provider API Key</label>
+                   <div className="relative">
+                      <Lock size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="password" 
+                        placeholder="sk-..." 
+                        value={localAiSettings.apiKey}
+                        onChange={(e) => setLocalAiSettings({...localAiSettings, apiKey: e.target.value})}
+                        className="w-full pl-14 pr-6 py-5 rounded-2xl bg-slate-50 border border-slate-100 font-mono text-sm focus:ring-4 focus:ring-red-50 outline-none" 
+                      />
+                   </div>
+                   <p className="text-[10px] font-bold text-slate-400 mt-2 leading-relaxed uppercase">Neural core keys are used for real-time forensic ID verification during driver registration.</p>
+                </div>
+
+                <button 
+                  onClick={() => { onUpdateAI(localAiSettings); setSaveSuccess('AI logic synchronized.'); setTimeout(() => setSaveSuccess(null), 3000); }}
+                  className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-black transition-all"
+                >
+                  Save Neural Configuration
+                </button>
+             </div>
+           </div>
+        )}
+
+        {/* PROFILE SETTINGS TAB */}
+        {activeTab === 'profile' && (
+          <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
+            <h3 className="text-2xl font-black uppercase tracking-tighter">Profile Configuration</h3>
+            <form onSubmit={handleProfileSave} className="space-y-8">
+              <div className="flex items-center gap-8 mb-8">
+                <div className="relative group">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-2 border-slate-200 overflow-hidden flex items-center justify-center">
+                    {profileForm.image ? (
+                      <img src={profileForm.image} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <UserIcon size={48} className="text-slate-300" />
+                    )}
+                  </div>
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem] cursor-pointer">
+                    <Camera size={24} className="text-white" />
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setProfileForm({ ...profileForm, image: reader.result as string });
+                        reader.readAsDataURL(file);
+                      }
+                    }} />
+                  </label>
+                </div>
+                <div>
+                  <h4 className="font-black text-lg uppercase tracking-tight">{profileForm.name || 'Admin User'}</h4>
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Master Authority Account</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Display Name</label>
+                  <input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Username</label>
+                  <input type="text" value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Primary Email</label>
+                  <input type="email" value={profileForm.email} onChange={e => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">New Password</label>
+                  <input type="password" value={profileForm.password} onChange={e => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-bold" placeholder="••••••••" />
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-black transition-all">Update Executive Credentials</button>
+            </form>
+          </div>
+        )}
+
         {/* Edit Application Modal */}
         {viewingAppId && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
@@ -405,7 +629,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 
                 {editFormData.verificationStatus && (
-                   <div className={`p-8 rounded-[2rem] border-2 flex flex-col gap-4 HUD-style
+                   <div className={`p-8 rounded-[2rem] border-2 flex flex-col gap-4
                     ${editFormData.verificationStatus === 'PASS' ? 'border-emerald-500/30 bg-emerald-50 text-emerald-800' : 'border-red-500/30 bg-red-50 text-red-800'}`}>
                       <div className="flex items-center justify-between">
                          <span className="text-[10px] font-black uppercase tracking-[0.3em]">AI Forensic Verification</span>

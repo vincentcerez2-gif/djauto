@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Vehicle, Application, SMSSettings, EmailSettings, AdminProfile, AISettings } from './types';
+import { View, Vehicle, Application, SMSSettings, EmailSettings, AdminProfile, AISettings, SystemUser } from './types';
 import { FEATURED_VEHICLES } from './constants';
 import { supabase } from './lib/supabase';
 import Navbar from './components/Navbar';
@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('dj_admin_session') === 'true');
   const [vehicles, setVehicles] = useState<Vehicle[]>(FEATURED_VEHICLES);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
   const [currentAppId, setCurrentAppId] = useState<string | null>(() => localStorage.getItem('dj_current_app_id'));
   const [loading, setLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
@@ -30,22 +31,27 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : { provider: 'GEMINI', apiKey: '' };
   });
 
-  const [adminProfile, setAdminProfile] = useState<AdminProfile>({
-    name: 'Fleet Manager',
-    email: 'admin@djautofleet.com',
-    phone: '(210) 390-6135',
-    address: '5072 Timberhill Drive, San Antonio, TX',
-    password: 'admin'
+  const [adminProfile, setAdminProfile] = useState<AdminProfile>(() => {
+    const saved = localStorage.getItem('dj_admin_profile');
+    return saved ? JSON.parse(saved) : {
+      name: 'Fleet Manager',
+      username: 'admin',
+      email: 'admin@djautofleet.com',
+      phone: '(210) 390-6135',
+      address: '5072 Timberhill Drive, San Antonio, TX',
+      password: 'admin',
+      image: ''
+    };
   });
 
   const [smsSettings, setSmsSettings] = useState<SMSSettings>({
     twilioAccountSid: '', twilioAuthToken: '', twilioFromNumber: '',
-    enabled: false, confirmationTemplate: 'Hi {name}, your application for {program} has been received!'
+    enabled: false, confirmationTemplate: 'Hi {name}, your application for {program} has been received! Our team will contact you shortly.'
   });
 
   const [emailSettings, setEmailSettings] = useState<EmailSettings>({
     smtpHost: '', smtpPort: '587', smtpUser: '', smtpPass: '', fromEmail: '',
-    enabled: false, confirmationTemplate: 'Dear {name}, thank you for applying to DJ Auto Fleet. Your application status has been updated to {status}.'
+    enabled: false, confirmationTemplate: 'Dear {name}, thank you for applying to DJ Auto Fleet. Your application for {program} is under review.'
   });
 
   const fetchData = async () => {
@@ -54,15 +60,9 @@ const App: React.FC = () => {
       const { data: vData } = await supabase.from('vehicles').select('*').order('created_at', { ascending: false });
       if (vData) {
          setVehicles(vData.map(v => ({
-          id: v.id,
-          year: v.year,
-          make: v.make,
-          model: v.model,
-          color: v.color || 'Unknown',
-          pricePerWeek: v.price_per_week,
-          image: v.image,
-          features: Array.isArray(v.features) ? v.features : [],
-          type: v.type || 'RIDESHARE',
+          id: v.id, year: v.year, make: v.make, model: v.model,
+          color: v.color || 'Unknown', pricePerWeek: v.price_per_week, image: v.image,
+          features: Array.isArray(v.features) ? v.features : [], type: v.type || 'RIDESHARE',
           isFeatured: v.is_featured
         })));
       }
@@ -70,19 +70,20 @@ const App: React.FC = () => {
       const { data: aData } = await supabase.from('applications').select('*').order('created_at', { ascending: false });
       if (aData) setApplications(aData.map(a => ({
         id: a.id, fullName: a.full_name, phone: a.phone, email: a.email,
-        address: a.address, licenseNumber: a.license_number, targetPlatform: a.target_platform,
+        address: a.address, license_number: a.license_number, targetPlatform: a.target_platform,
         vehicleId: a.vehicle_id, status: a.status, program: a.program,
-        documentsComplete: true,
-        verificationStatus: a.verification_status,
-        verificationReasoning: a.verification_reasoning,
-        licenseFront: a.license_front,
-        licenseBack: a.license_back,
-        date: new Date(a.created_at).toLocaleDateString()
+        documentsComplete: true, verificationStatus: a.verification_status,
+        verification_reasoning: a.verification_reasoning, licenseFront: a.license_front,
+        licenseBack: a.license_back, date: new Date(a.created_at).toLocaleDateString()
+      })));
+
+      const { data: uData } = await supabase.from('system_users').select('*');
+      if (uData) setSystemUsers(uData.map(u => ({
+        id: u.id, fullName: u.full_name, email: u.email, role: u.role, createdAt: new Date(u.created_at).toLocaleDateString()
       })));
 
       const { data: sData } = await supabase.from('site_settings').select('*');
       sData?.forEach(s => {
-        if (s.key === 'admin_profile') setAdminProfile(s.value);
         if (s.key === 'sms_settings') setSmsSettings(s.value);
         if (s.key === 'email_settings') setEmailSettings(s.value);
       });
@@ -124,12 +125,8 @@ const App: React.FC = () => {
 
   const handleEditApp = async (id: string, data: Partial<Application>) => {
     const { error } = await supabase.from('applications').update({
-      full_name: data.fullName,
-      email: data.email,
-      phone: data.phone,
-      license_number: data.licenseNumber,
-      status: data.status,
-      program: data.program
+      full_name: data.fullName, email: data.email, phone: data.phone,
+      license_number: data.licenseNumber, status: data.status, program: data.program
     }).eq('id', id);
     if (!error) fetchData();
   };
@@ -157,7 +154,41 @@ const App: React.FC = () => {
     if (!error) fetchData();
   };
 
+  const handleAddSystemUser = async (user: Omit<SystemUser, 'id' | 'createdAt'>) => {
+    const { error } = await supabase.from('system_users').insert([{
+      full_name: user.fullName, email: user.email, role: user.role
+    }]);
+    if (!error) fetchData();
+  };
+
+  const handleDeleteSystemUser = async (id: string) => {
+    const { error } = await supabase.from('system_users').delete().eq('id', id);
+    if (!error) fetchData();
+  };
+
+  const handleUpdateProfile = (p: AdminProfile) => {
+    setAdminProfile(p);
+    localStorage.setItem('dj_admin_profile', JSON.stringify(p));
+  };
+
+  const sendConfirmationAlerts = (app: Omit<Application, 'id' | 'status' | 'date'>) => {
+    // Logic for sending alerts based on settings
+    if (smsSettings.enabled) {
+      const msg = smsSettings.confirmationTemplate
+        .replace('{name}', app.fullName)
+        .replace('{program}', app.program);
+      console.log(`[AUTOMATIC SMS] To: ${app.phone} -> "${msg}" (Simulated via Twilio API)`);
+    }
+    if (emailSettings.enabled) {
+      const msg = emailSettings.confirmationTemplate
+        .replace('{name}', app.fullName)
+        .replace('{program}', app.program);
+      console.log(`[AUTOMATIC EMAIL] To: ${app.email} -> "${msg}" (Simulated via SMTP Relay)`);
+    }
+  };
+
   const handleApplicationSubmit = async (appData: Omit<Application, 'id' | 'status' | 'date'>) => {
+    // Fixed Error: Changed appData.target_platform to appData.targetPlatform
     const { data, error } = await supabase.from('applications').insert([{
       full_name: appData.fullName, phone: appData.phone, email: appData.email,
       address: appData.address, license_number: appData.licenseNumber,
@@ -173,6 +204,7 @@ const App: React.FC = () => {
       const newAppId = data[0].id;
       setCurrentAppId(newAppId);
       localStorage.setItem('dj_current_app_id', newAppId);
+      sendConfirmationAlerts(appData);
       fetchData();
     }
   };
@@ -219,12 +251,11 @@ const App: React.FC = () => {
           )}
 
           {currentView === View.ABOUT && <AboutUs />}
-
           {currentView === View.CONTACT && <Contact />}
 
           {currentView === View.LOGIN && !isAdmin && (
             <LoginForm onLogin={(u, p) => {
-              if (u === 'admin' && p === 'admin') {
+              if (u === adminProfile.username && p === adminProfile.password) {
                 setIsAdmin(true);
                 localStorage.setItem('dj_admin_session', 'true');
                 setCurrentView(View.ADMIN);
@@ -263,11 +294,20 @@ const App: React.FC = () => {
               onEditVehicle={handleEditVehicle} 
               onDeleteVehicle={handleDeleteVehicle}
               smsSettings={smsSettings} 
-              onUpdateSms={(s) => setSmsSettings(s)}
+              onUpdateSms={(s) => {
+                setSmsSettings(s);
+                supabase.from('site_settings').upsert({ key: 'sms_settings', value: s });
+              }}
               emailSettings={emailSettings} 
-              onUpdateEmail={(e) => setEmailSettings(e)}
+              onUpdateEmail={(e) => {
+                setEmailSettings(e);
+                supabase.from('site_settings').upsert({ key: 'email_settings', value: e });
+              }}
               adminProfile={adminProfile} 
-              onUpdateProfile={(p) => setAdminProfile(p)}
+              onUpdateProfile={handleUpdateProfile}
+              systemUsers={systemUsers}
+              onAddSystemUser={handleAddSystemUser}
+              onDeleteSystemUser={handleDeleteSystemUser}
             />
           )}
         </main>

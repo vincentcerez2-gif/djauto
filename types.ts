@@ -12,6 +12,16 @@ export enum View {
 
 export type AIProvider = 'OPENAI' | 'GEMINI' | 'CLAUDE';
 
+export type UserRole = 'ADMIN' | 'MANAGER' | 'EDITOR';
+
+export interface SystemUser {
+  id: string;
+  fullName: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+}
+
 export interface AISettings {
   provider: AIProvider;
   apiKey: string;
@@ -51,10 +61,12 @@ export interface Application {
 
 export interface AdminProfile {
   name: string;
+  username: string;
   email: string;
   phone: string;
   address: string;
   password?: string;
+  image?: string;
 }
 
 export interface SMSSettings {
