@@ -1,24 +1,27 @@
 
 import React, { useState, useRef } from 'react';
-import { ChevronRight, Upload, Check, Info, CheckCircle2, LogIn, ShieldAlert, ShieldCheck, Loader2 } from 'lucide-react';
+import { ChevronRight, Upload, Check, Info, CheckCircle2, LogIn, ShieldAlert, ShieldCheck, Loader2, Lock, Eye, EyeOff, Copy, ArrowRight, X, FileCheck } from 'lucide-react';
 import { Vehicle, Application, AISettings } from '../types';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface ApplicationFormProps {
   vehicles: Vehicle[];
   initialVehicleId?: string;
   aiSettings: AISettings;
-  onSubmit: (app: Omit<Application, 'id' | 'status' | 'date'>) => void;
+  onSubmit: (app: Omit<Application, 'id' | 'status' | 'date' | 'trackingCode'>) => string;
   onReturnHome: () => void;
   onNavigateToLogin: () => void;
+  onNavigateToTracking: () => void;
 }
 
-type Step = 1 | 2 | 3 | 4 | 'SUCCESS';
+type Step = 1 | 2 | 3 | 4 | 5 | 'SUCCESS';
 
-const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehicleId, aiSettings, onSubmit, onReturnHome, onNavigateToLogin }) => {
+const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehicleId, aiSettings, onSubmit, onReturnHome, onNavigateToLogin, onNavigateToTracking }) => {
   const [step, setStep] = useState<Step>(1);
   const [isVerifying, setIsVerifying] = useState(false);
   const [forensicResult, setForensicResult] = useState<{status: 'PASS' | 'FAIL' | 'UNVERIFIED', reasoning: string} | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState('');
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -30,42 +33,62 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
     vehicleId: initialVehicleId || '',
     rentalProgram: 'Standard Rental',
     licenseFront: '',
-    licenseBack: ''
+    licenseBack: '',
+    password: '',
+    confirmPassword: ''
   });
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
   const verifyID = async (imageBase64: string) => {
-    if (!aiSettings.apiKey || aiSettings.provider !== 'GEMINI') {
-      setForensicResult({ status: 'UNVERIFIED', reasoning: 'Forensic engine not configured in AI settings.' });
+    if (!process.env.API_KEY) {
+      setForensicResult({ status: 'UNVERIFIED', reasoning: 'Forensic engine not configured in environment.' });
       return;
     }
 
     setIsVerifying(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: aiSettings.apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `Analyze this ID document for authenticity. 
       Check for:
       - Holographic security markers
       - Digital artifacts or manipulation
       - Font consistency
       - Address validation logic
-      Return a JSON object with: 
-      { "status": "PASS" | "FAIL", "reasoning": "Forensic details about the analysis" }`;
+      Return a JSON object with status and reasoning.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [
-          { parts: [
+        contents: {
+          parts: [
             { text: prompt },
             { inlineData: { data: imageBase64.split(',')[1], mimeType: 'image/jpeg' } }
-          ]}
-        ],
-        config: { responseMimeType: "application/json" }
+          ]
+        },
+        config: { 
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              status: {
+                type: Type.STRING,
+                description: "The verification status: 'PASS' or 'FAIL'",
+                enum: ["PASS", "FAIL"]
+              },
+              reasoning: {
+                type: Type.STRING,
+                description: "Forensic details about the ID analysis"
+              }
+            },
+            required: ["status", "reasoning"]
+          }
+        }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      const resultText = response.text || '{}';
+      const result = JSON.parse(resultText);
+      
       setForensicResult({
         status: result.status === 'PASS' ? 'PASS' : 'FAIL',
         reasoning: result.reasoning || 'Automated analysis complete.'
@@ -93,9 +116,31 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
     }
   };
 
+  const removeImage = (e: React.MouseEvent, side: 'licenseFront' | 'licenseBack') => {
+    e.stopPropagation();
+    setFormData(prev => ({ ...prev, [side]: '' }));
+    if (side === 'licenseFront') {
+      setForensicResult(null);
+    }
+  };
+
   const nextStep = () => {
-    if (step === 4) {
-      onSubmit({
+    if (step === 5) {
+      if (formData.password !== formData.confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+      }
+      if (formData.password.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return;
+      }
+      if (!formData.licenseFront || !formData.licenseBack) {
+        alert("Please upload both sides of your driver's license.");
+        setStep(2);
+        return;
+      }
+
+      const code = onSubmit({
         fullName: formData.fullName,
         phone: formData.phone,
         email: formData.email,
@@ -104,16 +149,18 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
         targetPlatform: formData.targetPlatform,
         vehicleId: formData.vehicleId,
         program: formData.rentalProgram,
+        password: formData.password,
         verificationStatus: forensicResult?.status || 'UNVERIFIED',
         verificationReasoning: forensicResult?.reasoning || 'Manual verification required.',
         licenseFront: formData.licenseFront,
         licenseBack: formData.licenseBack
       });
+      setGeneratedCode(code);
       setStep('SUCCESS');
       return;
     }
     if (typeof step === 'number') {
-      setStep(prev => ((prev as number) < 4 ? (prev as number + 1) as Step : prev));
+      setStep(prev => ((prev as number) < 5 ? (prev as number + 1) as Step : prev));
     }
   };
   
@@ -127,7 +174,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
     { id: 1, label: 'PERSONAL' },
     { id: 2, label: 'LICENSE' },
     { id: 3, label: 'VEHICLE' },
-    { id: 4, label: 'AGREEMENTS' }
+    { id: 4, label: 'TERMS' },
+    { id: 5, label: 'SECURE' }
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -135,57 +183,61 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const getLastFour = (phone: string) => {
-    const digits = phone.replace(/\D/g, '');
-    return digits.length >= 4 ? digits.slice(-4) : '0000';
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedCode);
+    alert("Tracking code copied!");
   };
 
   if (step === 'SUCCESS') {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-[3rem] p-12 lg:p-16 text-center shadow-2xl border border-slate-100 animate-fadeIn">
-          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8">
+        <div className="bg-white rounded-[4rem] p-12 lg:p-20 text-center shadow-2xl border border-slate-100 animate-fadeIn">
+          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-10">
             <Check size={48} strokeWidth={3} />
           </div>
-          <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4">THANK YOU FOR YOUR INTEREST!</h2>
-          <p className="text-slate-500 text-lg font-bold uppercase tracking-tight mb-8">
-            YOUR APPLICATION IS NOW IN PROGRESS.
+          <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tighter mb-4">THANK YOU!</h2>
+          <p className="text-slate-500 text-lg font-bold uppercase tracking-tight mb-12">
+            Application Received. Our team is reviewing your documents.
           </p>
 
-          <div className="bg-slate-900 text-white p-10 rounded-[2.5rem] text-left mb-10 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-8 opacity-10">
-                <LogIn size={120} />
+          <div className="bg-slate-900 text-white p-12 rounded-[3rem] text-center mb-12 shadow-2xl relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:rotate-12 transition-transform duration-700">
+                <ShieldCheck size={160} />
              </div>
-             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-red-500 mb-6">PORTAL ACCESS CREDENTIALS</h3>
-             <p className="text-sm font-medium text-slate-400 mb-8 leading-relaxed">
-               Use the following credentials to track your approval status and access your rental agreement.
+             <h3 className="text-xs font-black uppercase tracking-[0.4em] text-red-600 mb-6">UNIQUE TRACKING ID</h3>
+             <div 
+               onClick={copyToClipboard}
+               className="inline-flex items-center gap-6 bg-white/5 border border-white/10 px-10 py-6 rounded-2xl cursor-pointer hover:bg-white/10 transition-all active:scale-95"
+             >
+                <span className="text-5xl font-black tracking-[0.4em] font-mono">{generatedCode}</span>
+                <Copy size={24} className="text-slate-500" />
+             </div>
+             <p className="text-[10px] font-black uppercase text-slate-500 mt-6 tracking-widest">
+               Check your email for full application details.
              </p>
-             <div className="space-y-4">
-                <div className="flex flex-col">
-                   <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Username (Email)</span>
-                   <span className="text-xl font-bold text-white">{formData.email}</span>
-                </div>
-                <div className="flex flex-col">
-                   <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Password (Last 4 digits of phone)</span>
-                   <span className="text-xl font-bold text-red-500 tracking-[0.2em]">{getLastFour(formData.phone)}</span>
-                </div>
-             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button 
+              onClick={onNavigateToTracking}
+              className="bg-red-600 hover:bg-red-700 text-white py-6 rounded-3xl font-black text-xs tracking-widest uppercase transition-all shadow-xl shadow-red-600/20 flex items-center justify-center gap-3"
+            >
+              TRACK LIVE STATUS <ArrowRight size={18} />
+            </button>
             <button 
               onClick={onNavigateToLogin}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-5 rounded-2xl font-black text-xs tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20"
+              className="bg-slate-900 hover:bg-black text-white py-6 rounded-3xl font-black text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-3"
             >
-              LOG IN NOW TO TRACK STATUS
-            </button>
-            <button 
-              onClick={onReturnHome}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-900 px-10 py-5 rounded-2xl font-black text-xs tracking-widest uppercase transition-all"
-            >
-              Return to Home
+              GO TO DRIVER HUB <LogIn size={18} />
             </button>
           </div>
+          
+          <button 
+            onClick={onReturnHome}
+            className="mt-10 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
+          >
+            Return to Homepage
+          </button>
         </div>
       </div>
     );
@@ -198,7 +250,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
           <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2 z-0" />
           <div 
             className="absolute top-1/2 left-0 h-0.5 bg-blue-600 -translate-y-1/2 z-0 transition-all duration-500" 
-            style={{ width: `${((step as number - 1) / 3) * 100}%` }} 
+            style={{ width: `${((step as number - 1) / 4) * 100}%` }} 
           />
           
           {steps.map((s) => (
@@ -315,7 +367,15 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
                     ${formData.licenseFront ? 'border-blue-600' : 'border-slate-200'}`}
                   >
                     {formData.licenseFront ? (
-                      <img src={formData.licenseFront} className="w-full h-full object-cover" />
+                      <>
+                        <img src={formData.licenseFront} className="w-full h-full object-cover" />
+                        <button 
+                          onClick={(e) => removeImage(e, 'licenseFront')}
+                          className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-xl hover:bg-red-700 transition-colors shadow-lg"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
                     ) : (
                       <>
                         <Upload size={24} className="text-slate-300 mb-2 group-hover:text-red-600" />
@@ -333,7 +393,15 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
                     ${formData.licenseBack ? 'border-blue-600' : 'border-slate-200'}`}
                   >
                     {formData.licenseBack ? (
-                      <img src={formData.licenseBack} className="w-full h-full object-cover" />
+                      <>
+                        <img src={formData.licenseBack} className="w-full h-full object-cover" />
+                        <button 
+                          onClick={(e) => removeImage(e, 'licenseBack')}
+                          className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-xl hover:bg-red-700 transition-colors shadow-lg"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
                     ) : (
                       <>
                         <Upload size={24} className="text-slate-300 mb-2 group-hover:text-red-600" />
@@ -431,6 +499,88 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
               </div>
             </div>
           )}
+
+          {step === 5 && (
+            <div className="space-y-8 animate-fadeIn">
+              <div className="bg-blue-600/10 p-6 rounded-2xl flex items-center gap-4">
+                 <Lock className="text-blue-600" size={32} />
+                 <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-slate-900">Final Security & Summary</h3>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">Double check your documents before committing.</p>
+                 </div>
+              </div>
+
+              {/* DOCUMENT REVIEW SUMMARY */}
+              <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-200">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                  <FileCheck size={14} className="text-blue-600" /> Stored Documents Preview
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="relative rounded-2xl overflow-hidden aspect-video bg-white border border-slate-200">
+                    {formData.licenseFront ? (
+                      <img src={formData.licenseFront} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-red-500 text-[10px] font-black uppercase">Missing Front</div>
+                    )}
+                    <div className="absolute bottom-0 left-0 w-full bg-black/60 text-white text-[8px] font-black uppercase py-1 text-center">License Front</div>
+                  </div>
+                  <div className="relative rounded-2xl overflow-hidden aspect-video bg-white border border-slate-200">
+                    {formData.licenseBack ? (
+                      <img src={formData.licenseBack} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-red-500 text-[10px] font-black uppercase">Missing Back</div>
+                    )}
+                    <div className="absolute bottom-0 left-0 w-full bg-black/60 text-white text-[8px] font-black uppercase py-1 text-center">License Back</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                 <div className="relative">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">Create Portal Password</label>
+                    <div className="relative">
+                       <input 
+                         type={showPassword ? "text" : "password"}
+                         name="password"
+                         value={formData.password}
+                         onChange={handleInputChange}
+                         placeholder="Min. 6 characters"
+                         className="w-full pl-6 pr-14 py-5 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none"
+                       />
+                       <button 
+                         type="button"
+                         onClick={() => setShowPassword(!showPassword)}
+                         className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
+                       >
+                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                       </button>
+                    </div>
+                 </div>
+
+                 <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">Confirm Password</label>
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      placeholder="Repeat password"
+                      className="w-full px-6 py-5 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none"
+                    />
+                 </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                 <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Driver Portal Access</span>
+                 </div>
+                 <p className="text-[10px] font-medium text-slate-500 uppercase leading-relaxed">
+                   After submission, use your email and this password to track approval status, upload missing documents, and manage your vehicle rental.
+                 </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between items-center mt-12 pt-10 border-t border-slate-50">
@@ -445,7 +595,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ vehicles, initialVehi
             onClick={nextStep}
             className="flex items-center gap-3 bg-slate-900 hover:bg-black text-white px-10 py-5 rounded-2xl font-black text-xs tracking-widest uppercase transition-all transform active:scale-95 shadow-xl shadow-black/10 disabled:opacity-50"
           >
-            {step === 4 ? 'Commit Application' : 'Next Phase'}
+            {step === 5 ? 'Commit Application' : 'Next Phase'}
             <ChevronRight size={18} />
           </button>
         </div>

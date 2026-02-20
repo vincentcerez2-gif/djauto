@@ -11,6 +11,7 @@ interface AdminPanelProps {
   vehicles: Vehicle[];
   applications: Application[];
   aiSettings: AISettings;
+  currentRole: UserRole;
   onUpdateApp: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   onDeleteApp: (id: string) => void;
   onEditApp: (id: string, updatedData: Partial<Application>) => void;
@@ -33,6 +34,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   vehicles, 
   applications, 
   aiSettings,
+  currentRole,
   onUpdateApp,
   onDeleteApp,
   onEditApp,
@@ -63,7 +65,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [localEmailSettings, setLocalEmailSettings] = useState<EmailSettings>(emailSettings);
   const [localAiSettings, setLocalAiSettings] = useState<AISettings>(aiSettings);
   const [profileForm, setProfileForm] = useState<AdminProfile>(adminProfile);
-  const [userForm, setUserForm] = useState<Omit<SystemUser, 'id' | 'createdAt'>>({ fullName: '', email: '', role: 'EDITOR' });
+  const [userForm, setUserForm] = useState<Omit<SystemUser, 'id' | 'createdAt'>>({ fullName: '', email: '', role: 'EDITOR', password: '' });
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -86,15 +88,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [newFeaturesStr, setNewFeaturesStr] = useState('');
 
+  // Define tab restrictions
   const menuItems = [
-    { id: 'applications', label: 'Applications', icon: <LayoutDashboard size={20} /> },
-    { id: 'fleet', label: 'Fleet Management', icon: <Car size={20} /> },
-    { id: 'users', label: 'System Users', icon: <UsersIcon size={20} /> },
-    { id: 'sms', label: 'SMS Alerts', icon: <MessageSquare size={20} /> },
-    { id: 'email', label: 'Email Settings', icon: <Mail size={20} /> },
-    { id: 'ai-settings', label: 'AI Configuration', icon: <Settings size={20} /> },
-    { id: 'profile', label: 'Profile Settings', icon: <UserIcon size={20} /> }
-  ];
+    { id: 'applications', label: 'Applications', icon: <LayoutDashboard size={20} />, roles: ['ADMIN', 'MANAGER', 'EDITOR'] },
+    { id: 'fleet', label: 'Fleet Management', icon: <Car size={20} />, roles: ['ADMIN', 'MANAGER', 'EDITOR'] },
+    { id: 'users', label: 'System Users', icon: <UsersIcon size={20} />, roles: ['ADMIN'] },
+    { id: 'sms', label: 'SMS Alerts', icon: <MessageSquare size={20} />, roles: ['ADMIN', 'MANAGER'] },
+    { id: 'email', label: 'Email Settings', icon: <Mail size={20} />, roles: ['ADMIN', 'MANAGER'] },
+    { id: 'ai-settings', label: 'AI Configuration', icon: <Settings size={20} />, roles: ['ADMIN'] },
+    { id: 'profile', label: 'Profile Settings', icon: <UserIcon size={20} />, roles: ['ADMIN', 'MANAGER', 'EDITOR'] }
+  ].filter(item => item.roles.includes(currentRole));
 
   const handleAddVehicleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +117,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     onAddSystemUser(userForm);
     setIsAddingUser(false);
-    setUserForm({ fullName: '', email: '', role: 'EDITOR' });
+    setUserForm({ fullName: '', email: '', role: 'EDITOR', password: '' });
     setSaveSuccess('User added successfully!');
     setTimeout(() => setSaveSuccess(null), 3000);
   };
@@ -177,7 +180,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
           <h2 className="font-black text-[10px] tracking-[0.3em] uppercase text-slate-500 mb-1">Administrative</h2>
-          <h1 className="text-sm font-black text-white uppercase tracking-widest">Fleet Hub</h1>
+          <h1 className="text-sm font-black text-white uppercase tracking-widest">{currentRole} Hub</h1>
         </div>
         <nav className="flex-1 p-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => (
@@ -264,7 +267,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <td className="px-10 py-8 text-right">
                           <div className="flex justify-end gap-3">
                             <button onClick={() => { setViewingAppId(app.id); setEditFormData(app); }} className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-xl hover:bg-black transition-all shadow-sm"><Edit size={16}/></button>
-                            <button onClick={() => onDeleteApp(app.id)} className="w-10 h-10 flex items-center justify-center bg-slate-100 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+                            {currentRole !== 'EDITOR' && (
+                              <button onClick={() => onDeleteApp(app.id)} className="w-10 h-10 flex items-center justify-center bg-slate-100 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -283,10 +288,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                <div>
                   <h3 className="text-xl font-black text-slate-900 uppercase">Fleet Inventory</h3>
                </div>
-               <button onClick={() => setIsAddingVehicle(!isAddingVehicle)} className="flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/20">
-                {isAddingVehicle ? <X size={16} /> : <Plus size={16} />}
-                {isAddingVehicle ? 'Cancel' : 'Add Vehicle'}
-              </button>
+               {currentRole !== 'EDITOR' && (
+                 <button onClick={() => setIsAddingVehicle(!isAddingVehicle)} className="flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/20">
+                  {isAddingVehicle ? <X size={16} /> : <Plus size={16} />}
+                  {isAddingVehicle ? 'Cancel' : 'Add Vehicle'}
+                </button>
+               )}
             </div>
 
             {isAddingVehicle && (
@@ -304,6 +311,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <option value="RENT_TO_OWN">Rent to Own</option>
                     <option value="BOTH">Both</option>
                   </select>
+                </div>
+                <div className="relative z-10 flex items-center gap-4">
+                  <label className="flex items-center cursor-pointer gap-3">
+                    <input 
+                      type="checkbox" 
+                      className="w-6 h-6 rounded-lg bg-white/5 border border-white/10" 
+                      checked={newVehicle.isFeatured}
+                      onChange={(e) => setNewVehicle({...newVehicle, isFeatured: e.target.checked})}
+                    />
+                    <span className="text-[10px] font-black uppercase text-slate-400">Featured Vehicle</span>
+                  </label>
                 </div>
                 <div className="relative z-10">
                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-2 block">Vehicle Features (Comma separated)</label>
@@ -337,6 +355,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <option value="BOTH">Both</option>
                     </select>
                  </div>
+                 <div className="mt-6 flex items-center gap-4">
+                  <label className="flex items-center cursor-pointer gap-3">
+                    <input 
+                      type="checkbox" 
+                      className="w-6 h-6 rounded-lg bg-white border border-slate-200" 
+                      checked={editVehicleData.isFeatured}
+                      onChange={(e) => setEditVehicleData({...editVehicleData, isFeatured: e.target.checked})}
+                    />
+                    <span className="text-[10px] font-black uppercase text-slate-400">Featured Vehicle</span>
+                  </label>
+                </div>
                  <div className="mt-6">
                     <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Vehicle Features (Comma separated)</label>
                     <textarea 
@@ -356,7 +385,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {vehicles.map(v => (
-                <div key={v.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl flex flex-col group">
+                <div key={v.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl flex flex-col group relative">
+                  {v.isFeatured && (
+                    <div className="absolute top-10 right-10 z-10 bg-amber-400 text-slate-900 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-lg">
+                      <Star size={14} fill="currentColor" />
+                    </div>
+                  )}
                   <div className="relative mb-8 rounded-[2rem] overflow-hidden aspect-video bg-slate-50">
                     <img src={v.image} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" />
                   </div>
@@ -370,7 +404,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                   <div className="flex gap-3 mt-8">
                     <button onClick={() => startEditVehicle(v)} className="flex-1 flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase"><Edit size={14} /> Edit</button>
-                    <button onClick={() => onDeleteVehicle(v.id)} className="w-14 flex items-center justify-center bg-red-50 text-red-600 py-4 rounded-2xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16} /></button>
+                    {currentRole !== 'EDITOR' && (
+                      <button onClick={() => onDeleteVehicle(v.id)} className="w-14 flex items-center justify-center bg-red-50 text-red-600 py-4 rounded-2xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16} /></button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -378,8 +414,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* SYSTEM USERS TAB */}
-        {activeTab === 'users' && (
+        {/* SYSTEM USERS TAB - Admin Only */}
+        {activeTab === 'users' && currentRole === 'ADMIN' && (
           <div className="space-y-12">
             <div className="flex justify-between items-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
                <div>
@@ -396,7 +432,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <h3 className="text-2xl font-black uppercase tracking-tighter">New Operator Details</h3>
                 <div className="space-y-4">
                   <input type="text" placeholder="Full Name" value={userForm.fullName} onChange={e => setUserForm({...userForm, fullName: e.target.value})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none" required />
-                  <input type="email" placeholder="Email Address" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none" required />
+                  <input type="email" placeholder="Email Address (Username)" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none" required />
+                  <input type="password" placeholder="System Password" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none" required />
                   <select value={userForm.role} onChange={e => setUserForm({...userForm, role: e.target.value as UserRole})} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white outline-none font-black text-xs uppercase">
                     <option value="MANAGER">Manager</option>
                     <option value="EDITOR">Editor</option>
@@ -415,7 +452,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div>
                       <h4 className="font-black text-slate-900 uppercase tracking-tight">{user.fullName}</h4>
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{user.role}</p>
+                      <div className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest mt-1 inline-block
+                        ${user.role === 'ADMIN' ? 'bg-red-100 text-red-600' : 
+                          user.role === 'MANAGER' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                        {user.role}
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2 mb-8">
@@ -430,7 +471,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
 
         {/* SMS SETTINGS TAB */}
-        {activeTab === 'sms' && (
+        {activeTab === 'sms' && (currentRole === 'ADMIN' || currentRole === 'MANAGER') && (
           <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-black uppercase tracking-tighter">SMS Alert Configuration</h3>
@@ -469,7 +510,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
 
         {/* EMAIL SETTINGS TAB */}
-        {activeTab === 'email' && (
+        {activeTab === 'email' && (currentRole === 'ADMIN' || currentRole === 'MANAGER') && (
           <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-black uppercase tracking-tighter">SMTP Relay Configuration</h3>
@@ -512,8 +553,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* AI SETTINGS TAB */}
-        {activeTab === 'ai-settings' && (
+        {/* AI SETTINGS TAB - Admin Only */}
+        {activeTab === 'ai-settings' && currentRole === 'ADMIN' && (
            <div className="max-w-3xl bg-white p-12 rounded-[3rem] border border-slate-200 shadow-2xl space-y-10 animate-fadeIn">
              <div className="flex items-center gap-4 text-red-600">
                 <Settings size={32} />
@@ -538,18 +579,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 block">Provider API Key</label>
-                   <div className="relative">
-                      <Lock size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        type="password" 
-                        placeholder="sk-..." 
-                        value={localAiSettings.apiKey}
-                        onChange={(e) => setLocalAiSettings({...localAiSettings, apiKey: e.target.value})}
-                        className="w-full pl-14 pr-6 py-5 rounded-2xl bg-slate-50 border border-slate-100 font-mono text-sm focus:ring-4 focus:ring-red-50 outline-none" 
-                      />
-                   </div>
-                   <p className="text-[10px] font-bold text-slate-400 mt-2 leading-relaxed uppercase">Neural core keys are used for real-time forensic ID verification during driver registration.</p>
+                   <p className="text-[10px] font-bold text-slate-400 mt-2 leading-relaxed uppercase">
+                     Neural core verification is powered by Gemini 3 Flash. 
+                     The API key is managed securely via environment variables (process.env.API_KEY).
+                   </p>
                 </div>
 
                 <button 

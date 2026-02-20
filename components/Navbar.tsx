@@ -1,17 +1,26 @@
 
 import React, { useState } from 'react';
-import { Phone, LogIn, UserCircle, ChevronDown, Lock } from 'lucide-react';
+import { Phone, LogIn, UserCircle, ChevronDown, Lock, LogOut, Radar } from 'lucide-react';
 import { View } from '../types';
 
 interface NavbarProps {
   currentView: View;
   onNavigate: (view: View) => void;
+  onLogout: () => void;
   isAdmin?: boolean;
   hasApplication?: boolean;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, isAdmin, hasApplication }) => {
+const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onLogout, isAdmin, hasApplication }) => {
   const [showLoginMenu, setShowLoginMenu] = useState(false);
+
+  const handleAuthAction = () => {
+    if (isAdmin || hasApplication) {
+      onLogout();
+    } else {
+      setShowLoginMenu(!showLoginMenu);
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-[#020617]/95 backdrop-blur-md border-b border-white/10 px-6 py-4">
@@ -30,6 +39,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, isAdmin, hasAp
         <div className="hidden lg:flex items-center gap-8">
           <button onClick={() => onNavigate(View.HOME)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.HOME ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Home</button>
           <button onClick={() => onNavigate(View.APPLY)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.APPLY ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Apply Now</button>
+          <button onClick={() => onNavigate(View.TRACK_STATUS)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.TRACK_STATUS ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Track App</button>
           <button onClick={() => onNavigate(View.ABOUT)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.ABOUT ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>About</button>
           <button onClick={() => onNavigate(View.CONTACT)} className={`text-xs font-black uppercase tracking-widest transition-colors ${currentView === View.CONTACT ? 'text-red-500' : 'text-white/70 hover:text-white'}`}>Contact</button>
         </div>
@@ -60,12 +70,13 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, isAdmin, hasAp
 
           <div className="relative">
             <button 
-              onClick={() => (isAdmin || hasApplication) ? onNavigate(View.HOME) : setShowLoginMenu(!showLoginMenu)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              onClick={handleAuthAction}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                ${(isAdmin || hasApplication) ? 'bg-red-600/10 text-red-500 hover:bg-red-600/20' : 'bg-white/10 hover:bg-white/20 text-white'}`}
             >
-              <LogIn size={14} />
+              {(isAdmin || hasApplication) ? <LogOut size={14} /> : <LogIn size={14} />}
               {(isAdmin || hasApplication) ? 'Logout' : 'Portal'}
-              <ChevronDown size={10} className={`ml-1 transition-transform ${showLoginMenu ? 'rotate-180' : ''}`} />
+              {!(isAdmin || hasApplication) && <ChevronDown size={10} className={`ml-1 transition-transform ${showLoginMenu ? 'rotate-180' : ''}`} />}
             </button>
 
             {showLoginMenu && !isAdmin && !hasApplication && (
@@ -76,6 +87,14 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, isAdmin, hasAp
                 >
                   <UserCircle size={16} className="text-blue-500" />
                   Driver Login
+                </button>
+                <div className="h-[1px] bg-white/5" />
+                <button 
+                  onClick={() => { onNavigate(View.TRACK_STATUS); setShowLoginMenu(false); }}
+                  className="w-full flex items-center gap-3 px-6 py-4 text-white hover:bg-emerald-600/20 transition-colors text-[10px] font-black uppercase tracking-widest"
+                >
+                  <Radar size={16} className="text-emerald-500" />
+                  Track Status
                 </button>
                 <div className="h-[1px] bg-white/5" />
                 <button 

@@ -1,21 +1,22 @@
 
 import React, { useState } from 'react';
-import { UserCircle, Mail, Key, ChevronRight, ArrowLeft } from 'lucide-react';
+import { UserCircle, Mail, Key, ChevronRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 interface UserLoginFormProps {
-  onLogin: (email: string, license: string) => void;
+  onLogin: (email: string, pass: string) => void;
   onCancel: () => void;
 }
 
 const UserLoginForm: React.FC<UserLoginFormProps> = ({ onLogin, onCancel }) => {
   const [email, setEmail] = useState('');
-  const [license, setLicense] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && license) {
-      onLogin(email, license);
+    if (email && password) {
+      onLogin(email, password);
     } else {
       setError(true);
       setTimeout(() => setError(false), 2000);
@@ -50,17 +51,24 @@ const UserLoginForm: React.FC<UserLoginFormProps> = ({ onLogin, onCancel }) => {
           <div className="relative">
             <Key size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
-              type="text" 
-              placeholder="License Number" 
-              value={license}
-              onChange={(e) => setLicense(e.target.value)}
-              className={`w-full pl-12 pr-4 py-4 rounded-2xl bg-white border font-bold text-sm transition-all focus:outline-none focus:ring-4
+              type={showPassword ? "text" : "password"}
+              placeholder="Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`w-full pl-12 pr-12 py-4 rounded-2xl bg-white border font-bold text-sm transition-all focus:outline-none focus:ring-4
                 ${error ? 'border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-600 focus:ring-blue-50'}`}
               required
             />
+            <button 
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
-          {error && <p className="text-center text-[10px] font-black text-red-600 uppercase animate-bounce">Verification Failed - Try Again</p>}
+          {error && <p className="text-center text-[10px] font-black text-red-600 uppercase animate-bounce">Authentication Failed - Try Again</p>}
 
           <button 
             type="submit" 
@@ -80,7 +88,7 @@ const UserLoginForm: React.FC<UserLoginFormProps> = ({ onLogin, onCancel }) => {
         
         <div className="mt-10 pt-8 border-t border-slate-100 text-center">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Don't have an application?</p>
-          <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Apply for a vehicle now</button>
+          <button onClick={onCancel} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Apply for a vehicle now</button>
         </div>
       </div>
     </div>

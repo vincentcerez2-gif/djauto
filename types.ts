@@ -7,7 +7,8 @@ export enum View {
   LOGIN = 'LOGIN', // Admin Login
   USER_LOGIN = 'USER_LOGIN', // Driver Login
   CONTACT = 'CONTACT',
-  DRIVER_DASHBOARD = 'DRIVER_DASHBOARD'
+  DRIVER_DASHBOARD = 'DRIVER_DASHBOARD',
+  TRACK_STATUS = 'TRACK_STATUS'
 }
 
 export type AIProvider = 'OPENAI' | 'GEMINI' | 'CLAUDE';
@@ -19,12 +20,12 @@ export interface SystemUser {
   fullName: string;
   email: string;
   role: UserRole;
+  password?: string;
   createdAt: string;
 }
 
 export interface AISettings {
   provider: AIProvider;
-  apiKey: string;
 }
 
 export interface Vehicle {
@@ -42,6 +43,7 @@ export interface Vehicle {
 
 export interface Application {
   id: string;
+  trackingCode: string; // Unique human-readable code
   fullName: string;
   phone: string;
   email: string;
@@ -52,6 +54,7 @@ export interface Application {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   date: string;
   program: string;
+  password?: string;
   documentsComplete?: boolean;
   verificationStatus?: 'PASS' | 'FAIL' | 'UNVERIFIED';
   verificationReasoning?: string;

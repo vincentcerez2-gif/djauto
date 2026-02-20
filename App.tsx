@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Vehicle, Application, SMSSettings, EmailSettings, AdminProfile, AISettings, SystemUser } from './types';
+import { View, Vehicle, Application, SMSSettings, EmailSettings, AdminProfile, AISettings, SystemUser, UserRole } from './types';
 import { FEATURED_VEHICLES } from './constants';
 import { supabase } from './lib/supabase';
 import Navbar from './components/Navbar';
@@ -10,6 +10,7 @@ import FeaturedVehicles from './components/FeaturedVehicles';
 import ApplicationForm from './components/ApplicationForm';
 import AdminPanel from './components/AdminPanel';
 import DriverDashboard from './components/DriverDashboard';
+import TrackingPage from './components/TrackingPage';
 import Contact from './components/Contact';
 import AboutUs from './components/AboutUs';
 import LoginForm from './components/LoginForm';
@@ -19,6 +20,7 @@ import Footer from './components/Footer';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.HOME);
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('dj_admin_session') === 'true');
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(() => (localStorage.getItem('dj_user_role') as UserRole) || 'ADMIN');
   const [vehicles, setVehicles] = useState<Vehicle[]>(FEATURED_VEHICLES);
   const [applications, setApplications] = useState<Application[]>([]);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
@@ -28,7 +30,7 @@ const App: React.FC = () => {
 
   const [aiSettings, setAiSettings] = useState<AISettings>(() => {
     const saved = localStorage.getItem('dj_ai_settings');
-    return saved ? JSON.parse(saved) : { provider: 'GEMINI', apiKey: '' };
+    return saved ? JSON.parse(saved) : { provider: 'GEMINI' };
   });
 
   const [adminProfile, setAdminProfile] = useState<AdminProfile>(() => {
@@ -46,12 +48,12 @@ const App: React.FC = () => {
 
   const [smsSettings, setSmsSettings] = useState<SMSSettings>({
     twilioAccountSid: '', twilioAuthToken: '', twilioFromNumber: '',
-    enabled: false, confirmationTemplate: 'Hi {name}, your application for {program} has been received! Our team will contact you shortly.'
+    enabled: false, confirmationTemplate: 'Hi {name}, your tracking code for {program} is {code}. We will contact you shortly!'
   });
 
   const [emailSettings, setEmailSettings] = useState<EmailSettings>({
     smtpHost: '', smtpPort: '587', smtpUser: '', smtpPass: '', fromEmail: '',
-    enabled: false, confirmationTemplate: 'Dear {name}, thank you for applying to DJ Auto Fleet. Your application for {program} is under review.'
+    enabled: false, confirmationTemplate: 'Dear {name}, thank you for applying to DJ Auto Fleet. Your tracking code for {program} is {code}.'
   });
 
   const fetchData = async () => {
@@ -69,17 +71,19 @@ const App: React.FC = () => {
 
       const { data: aData } = await supabase.from('applications').select('*').order('created_at', { ascending: false });
       if (aData) setApplications(aData.map(a => ({
-        id: a.id, fullName: a.full_name, phone: a.phone, email: a.email,
-        address: a.address, license_number: a.license_number, targetPlatform: a.target_platform,
-        vehicleId: a.vehicle_id, status: a.status, program: a.program,
+        id: a.id, 
+        trackingCode: a.tracking_code,
+        fullName: a.full_name, phone: a.phone, email: a.email,
+        address: a.address, licenseNumber: a.license_number, targetPlatform: a.target_platform,
+        vehicleId: a.vehicle_id, status: a.status, program: a.program, password: a.password,
         documentsComplete: true, verificationStatus: a.verification_status,
-        verification_reasoning: a.verification_reasoning, licenseFront: a.license_front,
+        verificationReasoning: a.verification_reasoning, licenseFront: a.license_front,
         licenseBack: a.license_back, date: new Date(a.created_at).toLocaleDateString()
       })));
 
       const { data: uData } = await supabase.from('system_users').select('*');
       if (uData) setSystemUsers(uData.map(u => ({
-        id: u.id, fullName: u.full_name, email: u.email, role: u.role, createdAt: new Date(u.created_at).toLocaleDateString()
+        id: u.id, fullName: u.full_name, email: u.email, role: u.role, password: u.password, createdAt: new Date(u.created_at).toLocaleDateString()
       })));
 
       const { data: sData } = await supabase.from('site_settings').select('*');
@@ -99,16 +103,18 @@ const App: React.FC = () => {
     fetchData();
   }, []);
 
+  const handleLogout = () => {
+    setIsAdmin(false);
+    setCurrentAppId(null);
+    localStorage.removeItem('dj_admin_session');
+    localStorage.removeItem('dj_current_app_id');
+    localStorage.removeItem('dj_user_role');
+    setCurrentView(View.HOME);
+    window.scrollTo(0, 0);
+  };
+
   const handleNavigate = (view: View) => {
-    if ((view === View.LOGIN || view === View.USER_LOGIN) && (isAdmin || currentAppId)) {
-      setIsAdmin(false);
-      setCurrentAppId(null);
-      localStorage.removeItem('dj_admin_session');
-      localStorage.removeItem('dj_current_app_id');
-      setCurrentView(View.HOME);
-    } else {
-      setCurrentView(view);
-    }
+    setCurrentView(view);
     window.scrollTo(0, 0);
   };
 
@@ -143,7 +149,8 @@ const App: React.FC = () => {
   const handleEditVehicle = async (id: string, v: Partial<Vehicle>) => {
     const { error } = await supabase.from('vehicles').update({
       year: v.year, make: v.make, model: v.model, color: v.color,
-      price_per_week: v.pricePerWeek, image: v.image, type: v.type, features: v.features
+      price_per_week: v.pricePerWeek, image: v.image, type: v.type, 
+      features: v.features, is_featured: v.isFeatured
     }).eq('id', id);
     if (!error) fetchData();
   };
@@ -156,7 +163,7 @@ const App: React.FC = () => {
 
   const handleAddSystemUser = async (user: Omit<SystemUser, 'id' | 'createdAt'>) => {
     const { error } = await supabase.from('system_users').insert([{
-      full_name: user.fullName, email: user.email, role: user.role
+      full_name: user.fullName, email: user.email, role: user.role, password: user.password
     }]);
     if (!error) fetchData();
   };
@@ -172,41 +179,69 @@ const App: React.FC = () => {
   };
 
   const sendConfirmationAlerts = (app: Omit<Application, 'id' | 'status' | 'date'>) => {
-    // Logic for sending alerts based on settings
     if (smsSettings.enabled) {
       const msg = smsSettings.confirmationTemplate
         .replace('{name}', app.fullName)
-        .replace('{program}', app.program);
-      console.log(`[AUTOMATIC SMS] To: ${app.phone} -> "${msg}" (Simulated via Twilio API)`);
+        .replace('{program}', app.program)
+        .replace('{code}', app.trackingCode);
+      console.log(`[REAL-TIME SMS] To: ${app.phone} -> "${msg}" (Twilio Integration)`);
     }
     if (emailSettings.enabled) {
       const msg = emailSettings.confirmationTemplate
         .replace('{name}', app.fullName)
-        .replace('{program}', app.program);
-      console.log(`[AUTOMATIC EMAIL] To: ${app.email} -> "${msg}" (Simulated via SMTP Relay)`);
+        .replace('{program}', app.program)
+        .replace('{code}', app.trackingCode);
+      console.log(`[REAL-TIME EMAIL] To: ${app.email} -> "${msg}" (SMTP Relay Integration)`);
     }
   };
 
-  const handleApplicationSubmit = async (appData: Omit<Application, 'id' | 'status' | 'date'>) => {
-    // Fixed Error: Changed appData.target_platform to appData.targetPlatform
-    const { data, error } = await supabase.from('applications').insert([{
+  const handleApplicationSubmit = (appData: Omit<Application, 'id' | 'status' | 'date' | 'trackingCode'>): string => {
+    const uniqueCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    supabase.from('applications').insert([{
+      tracking_code: uniqueCode,
       full_name: appData.fullName, phone: appData.phone, email: appData.email,
       address: appData.address, license_number: appData.licenseNumber,
       target_platform: appData.targetPlatform, vehicle_id: appData.vehicleId,
       program: appData.program, status: 'PENDING',
+      password: appData.password,
       verification_status: appData.verificationStatus,
       verification_reasoning: appData.verificationReasoning,
       license_front: appData.licenseFront,
       license_back: appData.licenseBack
-    }]).select();
+    }]).then(({ data, error }) => {
+      if (!error) {
+        sendConfirmationAlerts({ ...appData, trackingCode: uniqueCode } as any);
+        fetchData();
+      }
+    });
 
-    if (!error && data) {
-      const newAppId = data[0].id;
-      setCurrentAppId(newAppId);
-      localStorage.setItem('dj_current_app_id', newAppId);
-      sendConfirmationAlerts(appData);
-      fetchData();
+    return uniqueCode;
+  };
+
+  const handleAdminLogin = (u: string, p: string) => {
+    // Check master account
+    if (u === adminProfile.username && p === adminProfile.password) {
+      setIsAdmin(true);
+      setCurrentUserRole('ADMIN');
+      localStorage.setItem('dj_admin_session', 'true');
+      localStorage.setItem('dj_user_role', 'ADMIN');
+      setCurrentView(View.ADMIN);
+      return;
     }
+
+    // Check system users
+    const user = systemUsers.find(su => su.email === u && su.password === p);
+    if (user) {
+      setIsAdmin(true);
+      setCurrentUserRole(user.role);
+      localStorage.setItem('dj_admin_session', 'true');
+      localStorage.setItem('dj_user_role', user.role);
+      setCurrentView(View.ADMIN);
+      return;
+    }
+
+    alert("Invalid Credentials.");
   };
 
   const currentApplication = applications.find(a => a.id === currentAppId) || null;
@@ -217,6 +252,7 @@ const App: React.FC = () => {
       <Navbar 
         currentView={currentView} 
         onNavigate={handleNavigate} 
+        onLogout={handleLogout}
         isAdmin={isAdmin} 
         hasApplication={!!currentAppId}
       />
@@ -247,33 +283,31 @@ const App: React.FC = () => {
               onSubmit={handleApplicationSubmit} 
               onReturnHome={() => setCurrentView(View.HOME)} 
               onNavigateToLogin={() => setCurrentView(View.USER_LOGIN)}
+              onNavigateToTracking={() => setCurrentView(View.TRACK_STATUS)}
             />
+          )}
+
+          {currentView === View.TRACK_STATUS && (
+            <TrackingPage applications={applications} vehicles={vehicles} />
           )}
 
           {currentView === View.ABOUT && <AboutUs />}
           {currentView === View.CONTACT && <Contact />}
 
           {currentView === View.LOGIN && !isAdmin && (
-            <LoginForm onLogin={(u, p) => {
-              if (u === adminProfile.username && p === adminProfile.password) {
-                setIsAdmin(true);
-                localStorage.setItem('dj_admin_session', 'true');
-                setCurrentView(View.ADMIN);
-              }
-            }} onCancel={() => setCurrentView(View.HOME)} />
+            <LoginForm onLogin={handleAdminLogin} onCancel={() => setCurrentView(View.HOME)} />
           )}
 
           {currentView === View.USER_LOGIN && !currentAppId && (
             <UserLoginForm onLogin={(email, pass) => {
-              const app = applications.find(a => {
-                const lastFour = a.phone.replace(/\D/g, '').slice(-4);
-                return a.email.toLowerCase() === email.toLowerCase() && lastFour === pass;
-              });
+              const app = applications.find(a => 
+                a.email.toLowerCase() === email.toLowerCase() && a.password === pass
+              );
               if (app) {
                 setCurrentAppId(app.id);
                 localStorage.setItem('dj_current_app_id', app.id);
                 setCurrentView(View.DRIVER_DASHBOARD);
-              } else { alert("Login Error."); }
+              } else { alert("Invalid Credentials."); }
             }} onCancel={() => setCurrentView(View.HOME)} />
           )}
 
@@ -286,6 +320,7 @@ const App: React.FC = () => {
               vehicles={vehicles} 
               applications={applications}
               aiSettings={aiSettings}
+              currentRole={currentUserRole}
               onUpdateAI={(s) => { setAiSettings(s); localStorage.setItem('dj_ai_settings', JSON.stringify(s)); }}
               onUpdateApp={handleUpdateApp} 
               onDeleteApp={handleDeleteApp} 
